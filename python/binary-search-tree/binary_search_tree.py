@@ -1,7 +1,7 @@
 class TreeNode:
     def __init__(self, data, left=None, right=None):
         self.data = data
-        self.left = left   
+        self.left = left
         self.right = right
 
     def __repr__(self):
@@ -22,19 +22,21 @@ class TreeNode:
 
     def sorted_re(self, sorted_data=[]):
         if self.left:
-            self.left.get_sorted(sorted_data)
+            self.left.sorted_re(sorted_data)
         sorted_data.append(self.data)
         if self.right:
-            self.right.get_sorted(sorted_data)
+            self.right.sorted_re(sorted_data)
         return sorted_data
 
 
-class BinarySearchTree:
+class BinarySearchTree(object):
     def __init__(self, tree_data):
-        pass
+        self.root = TreeNode(tree_data[0])
+        for data in tree_data[1:]:
+            self.root.insert(data)
 
     def data(self):
-        pass
+        return self.root
 
     def sorted_data(self):
-        pass
+        return self.root.sorted_re([])
