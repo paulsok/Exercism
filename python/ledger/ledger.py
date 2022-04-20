@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from datetime import datetime
 
 
@@ -7,6 +6,13 @@ class LedgerEntry:
         self.date = None
         self.description = None
         self.change = None
+
+    def __lt__(self, other):
+        if self.date < other.date:
+            return True
+        elif self.description < other.description:
+            return True
+        return self.change < other.change
 
 
 def create_entry(date, description, change):
@@ -18,281 +24,45 @@ def create_entry(date, description, change):
 
 
 def format_entries(currency, locale, entries):
+    table = create_table(locale)
+
+    for entry in sorted(entries):
+        date_fmt = format_date(entry, locale)
+        desc_fmt = format_description(entry)
+        change_fmt = format_change(currency, entry, locale)
+        table += '\n{} | {} | {}'.format(date_fmt, desc_fmt, change_fmt)
+    return table
+
+
+def format_change(currency, entry, locale):
+    currency_symbol = {'USD': '$', 'EUR': u'€'}
+    change_str, change_fmt = '{:>13}', ''
+
     if locale == 'en_US':
-        # Generate Header Row
-        table = 'Date'
-        for _ in range(7):
-            table += ' '
-        table += '| Description'
-        for _ in range(15):
-            table += ' '
-        table += '| Change'
-        for _ in range(7):
-            table += ' '
-
-        while len(entries) > 0:
-            table += '\n'
-
-            # Find next entry in order
-            min_entry_index = -1
-            for i in range(len(entries)):
-                entry = entries[i]
-                if min_entry_index < 0:
-                    min_entry_index = i
-                    continue
-                min_entry = entries[min_entry_index]
-                if entry.date < min_entry.date:
-                    min_entry_index = i
-                    continue
-                if (
-                    entry.date == min_entry.date and
-                    entry.change < min_entry.change
-                ):
-                    min_entry_index = i
-                    continue
-                if (
-                    entry.date == min_entry.date and
-                    entry.change == min_entry.change and
-                    entry.description < min_entry.description
-                ):
-                    min_entry_index = i
-                    continue
-            entry = entries[min_entry_index]
-            entries.pop(min_entry_index)
-
-            # Write entry date to table
-            month = entry.date.month
-            month = str(month)
-            if len(month) < 2:
-                month = '0' + month
-            date_str = month
-            date_str += '/'
-            day = entry.date.day
-            day = str(day)
-            if len(day) < 2:
-                day = '0' + day
-            date_str += day
-            date_str += '/'
-            year = entry.date.year
-            year = str(year)
-            while len(year) < 4:
-                year = '0' + year
-            date_str += year
-            table += date_str
-            table += ' | '
-
-            # Write entry description to table
-            # Truncate if necessary
-            if len(entry.description) > 25:
-                for i in range(22):
-                    table += entry.description[i]
-                table += '...'
-            else:
-                for i in range(25):
-                    if len(entry.description) > i:
-                        table += entry.description[i]
-                    else:
-                        table += ' '
-            table += ' | '
-
-            # Write entry change to table
-            if currency == 'USD':
-                change_str = ''
-                if entry.change < 0:
-                    change_str = '('
-                change_str += '$'
-                change_dollar = abs(int(entry.change / 100.0))
-                dollar_parts = []
-                while change_dollar > 0:
-                    dollar_parts.insert(0, str(change_dollar % 1000))
-                    change_dollar = change_dollar // 1000
-                if len(dollar_parts) == 0:
-                    change_str += '0'
-                else:
-                    while True:
-                        change_str += dollar_parts[0]
-                        dollar_parts.pop(0)
-                        if len(dollar_parts) == 0:
-                            break
-                        change_str += ','
-                change_str += '.'
-                change_cents = abs(entry.change) % 100
-                change_cents = str(change_cents)
-                if len(change_cents) < 2:
-                    change_cents = '0' + change_cents
-                change_str += change_cents
-                if entry.change < 0:
-                    change_str += ')'
-                else:
-                    change_str += ' '
-                while len(change_str) < 13:
-                    change_str = ' ' + change_str
-                table += change_str
-            elif currency == 'EUR':
-                change_str = ''
-                if entry.change < 0:
-                    change_str = '('
-                change_str += u'€'
-                change_euro = abs(int(entry.change / 100.0))
-                euro_parts = []
-                while change_euro > 0:
-                    euro_parts.insert(0, str(change_euro % 1000))
-                    change_euro = change_euro // 1000
-                if len(euro_parts) == 0:
-                    change_str += '0'
-                else:
-                    while True:
-                        change_str += euro_parts[0]
-                        euro_parts.pop(0)
-                        if len(euro_parts) == 0:
-                            break
-                        change_str += ','
-                change_str += '.'
-                change_cents = abs(entry.change) % 100
-                change_cents = str(change_cents)
-                if len(change_cents) < 2:
-                    change_cents = '0' + change_cents
-                change_str += change_cents
-                if entry.change < 0:
-                    change_str += ')'
-                else:
-                    change_str += ' '
-                while len(change_str) < 13:
-                    change_str = ' ' + change_str
-                table += change_str
-        return table
+        left, right = ('', ' ') if entry.change >= 0 else ('(', ')')
+        change_fmt = '{}{}{:0,.2f}{}'.format(left, currency_symbol[currency],
+                                             abs(entry.change/100), right)
     elif locale == 'nl_NL':
-        # Generate Header Row
-        table = 'Datum'
-        for _ in range(6):
-            table += ' '
-        table += '| Omschrijving'
-        for _ in range(14):
-            table += ' '
-        table += '| Verandering'
-        for _ in range(2):
-            table += ' '
+        change_fmt = '{} {:0,.2f} '.format(currency_symbol[currency], entry.change/100)
+        change_fmt = change_fmt.translate(str.maketrans(',.', '.,'))
+    return change_str.format(change_fmt)
 
-        while len(entries) > 0:
-            table += '\n'
 
-            # Find next entry in order
-            min_entry_index = -1
-            for i in range(len(entries)):
-                entry = entries[i]
-                if min_entry_index < 0:
-                    min_entry_index = i
-                    continue
-                min_entry = entries[min_entry_index]
-                if entry.date < min_entry.date:
-                    min_entry_index = i
-                    continue
-                if (
-                    entry.date == min_entry.date and
-                    entry.change < min_entry.change
-                ):
-                    min_entry_index = i
-                    continue
-                if (
-                    entry.date == min_entry.date and
-                    entry.change == min_entry.change and
-                    entry.description < min_entry.description
-                ):
-                    min_entry_index = i
-                    continue
-            entry = entries[min_entry_index]
-            entries.pop(min_entry_index)
+def format_description(entry):
+    if len(entry.description) > 25:
+        return entry.description[:22] + '...'
+    return '{:<25}'.format(entry.description)
 
-            # Write entry date to table
-            day = entry.date.day
-            day = str(day)
-            if len(day) < 2:
-                day = '0' + day
-            date_str = day
-            date_str += '-'
-            month = entry.date.month
-            month = str(month)
-            if len(month) < 2:
-                month = '0' + month
-            date_str += month
-            date_str += '-'
-            year = entry.date.year
-            year = str(year)
-            while len(year) < 4:
-                year = '0' + year
-            date_str += year
-            table += date_str
-            table += ' | '
 
-            # Write entry description to table
-            # Truncate if necessary
-            if len(entry.description) > 25:
-                for i in range(22):
-                    table += entry.description[i]
-                table += '...'
-            else:
-                for i in range(25):
-                    if len(entry.description) > i:
-                        table += entry.description[i]
-                    else:
-                        table += ' '
-            table += ' | '
+def format_date(entry, lang):
+    if lang == 'en_US':
+        return f'{entry.date.month:02}/{entry.date.day:02}/{entry.date.year:04}'
+    return f'{entry.date.day:02}-{entry.date.month:02}-{entry.date.year:04}'
 
-            # Write entry change to table
-            if currency == 'USD':
-                change_str = '$ '
-                if entry.change < 0:
-                    change_str += '-'
-                change_dollar = abs(int(entry.change / 100.0))
-                dollar_parts = []
-                while change_dollar > 0:
-                    dollar_parts.insert(0, str(change_dollar % 1000))
-                    change_dollar = change_dollar // 1000
-                if len(dollar_parts) == 0:
-                    change_str += '0'
-                else:
-                    while True:
-                        change_str += dollar_parts[0]
-                        dollar_parts.pop(0)
-                        if len(dollar_parts) == 0:
-                            break
-                        change_str += '.'
-                change_str += ','
-                change_cents = abs(entry.change) % 100
-                change_cents = str(change_cents)
-                if len(change_cents) < 2:
-                    change_cents = '0' + change_cents
-                change_str += change_cents
-                change_str += ' '
-                while len(change_str) < 13:
-                    change_str = ' ' + change_str
-                table += change_str
-            elif currency == 'EUR':
-                change_str = u'€ '
-                if entry.change < 0:
-                    change_str += '-'
-                change_euro = abs(int(entry.change / 100.0))
-                euro_parts = []
-                while change_euro > 0:
-                    euro_parts.insert(0, str(change_euro % 1000))
-                    change_euro = change_euro // 1000
-                if len(euro_parts) == 0:
-                    change_str += '0'
-                else:
-                    while True:
-                        change_str += euro_parts[0]
-                        euro_parts.pop(0)
-                        if len(euro_parts) == 0:
-                            break
-                        change_str += '.'
-                change_str += ','
-                change_cents = abs(entry.change) % 100
-                change_cents = str(change_cents)
-                if len(change_cents) < 2:
-                    change_cents = '0' + change_cents
-                change_str += change_cents
-                change_str += ' '
-                while len(change_str) < 13:
-                    change_str = ' ' + change_str
-                table += change_str
-        return table
+
+def create_table(locale):
+    lang_to_table = {'en_US': ['Date', 'Description', 'Change'],
+                     'nl_NL': ['Datum', 'Omschrijving', 'Verandering']}
+    pattern = '{:<11}| {:<26}| {:<13}'
+    table = pattern.format(*lang_to_table[locale])
+    return table
