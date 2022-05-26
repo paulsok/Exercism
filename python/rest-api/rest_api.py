@@ -57,3 +57,39 @@ class RestAPI(object):
                     for user in database.get('users', [])
                 }
             }
+
+    @route
+    def get(self, url: str, payload):
+        if url == '/users':
+            users = self.database.get('users', {})
+            return {
+                'users': sorted(
+                    [
+                        user.to_dict()
+                        for user in users.values()
+                        if payload.get('users') is None or
+                        user.name in payload['users']
+                    ],
+                    key=lambda user: user['name'])
+            }
+
+    @route
+    def post(self, url, payload):
+        if url == '/add':
+            self.database['users'][payload['user']] = User(payload['user'])
+            return self.database['users'][payload['user']].to_dict()
+
+        if url == '/iou':
+            lender = self.database['users'][payload['lender']]
+            borrower = self.database['users'][payload['borrower']]
+            amount = payload['amount']
+
+            lender.lend(borrower.name, amount)
+            borrower.borrow(lender.name, amount)
+
+            return {
+                'users': sorted(
+                    [lender.to_dict(), borrower.to_dict()],
+                    key=lambda user: user['name']
+                )
+            }
